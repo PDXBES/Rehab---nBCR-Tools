@@ -1,7 +1,7 @@
 USE [SANDBOX]
 GO
 
-/****** Object:  StoredProcedure [ROSE\issacg].[USP_REHAB_2IDENTIFYSPOTREPAIRSFASTER_10]    Script Date: 07/21/2011 08:23:12 ******/
+/****** Object:  StoredProcedure [ROSE\issacg].[USP_REHAB_2IDENTIFYSPOTREPAIRSFASTER_10]    Script Date: 07/21/2011 08:34:08 ******/
 SET ANSI_NULLS ON
 GO
 
@@ -719,6 +719,22 @@ FROM
 		OR 
 		D.[Action] = 7
 	)
+	
+----------------------------------------------------------------------------------------------
+--Update all failure years prior to 2010 year to 2010
+--NOTE: this limits the domain of the CBR input, and
+--so limits the CBR values.
+UPDATE	REHAB_RedundancyTable
+SET		Failure_year = 2010
+WHERE	Failure_year < 2010
+
+----------------------------------------------------------------------------------------------
+--Update all failure years for segments prior to 2010 year to 2010
+--NOTE: this limits the domain of the CBR input, and
+--so limits the CBR values.
+UPDATE	REHAB_RedundancyTable
+SET		Fail_YR_Seg = 2010
+WHERE	Fail_YR_Seg < 2010
 
 DELETE 
 FROM	REHAB_SmallResultsTable
