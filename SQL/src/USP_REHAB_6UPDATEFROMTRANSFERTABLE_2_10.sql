@@ -1,7 +1,7 @@
 USE [REHAB]
 GO
 
-/****** Object:  StoredProcedure [GIS].[USP_REHAB_6UPDATEFROMTRANSFERTABLE_2_10]    Script Date: 08/12/2011 12:42:46 ******/
+/****** Object:  StoredProcedure [GIS].[USP_REHAB_6UPDATEFROMTRANSFERTABLE_2_10]    Script Date: 01/25/2012 15:31:53 ******/
 SET ANSI_NULLS ON
 GO
 
@@ -68,15 +68,22 @@ WHERE	ACTION = 3
 UPDATE	REHAB10FTSEGS 
 SET		remarks = ''
 
---Identify the sanitary pipes as BES owned
+--Identify ownership of all pipes.  
+--Use an underscore because later we will give a special precendence to some BES pipes
 UPDATE	REHAB10FTSEGS 
-SET		remarks = 'BES' 
+SET		remarks = '_' + ISNULL(B.OWN, 'NULL') 
 FROM	REHAB10FTSEGS AS A 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS B	
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[COMPSMN] AS B	
 		ON	A.COMPKEY = B.COMPKEY 
-			AND 
-			B.OWN = 'BES'
+
+--Identify the sanitary pipes as BES owned
+UPDATE	REHAB10FTSEGS 
+SET		remarks = ISNULL(B.OWN, 'NULL')
+FROM	REHAB10FTSEGS AS A 
+		INNER JOIN 
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[COMPSMN] AS B	
+		ON	A.COMPKEY = B.COMPKEY 
 			AND 
 			(
 				B.UnitType = 'saml' 
@@ -107,7 +114,7 @@ UPDATE	REHAB10FTSEGS
 SET		remarks = 'BES' 
 FROM	REHAB10FTSEGS AS A 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS B 
+		[HANSEN8].[ASSETMANAGEMENT_STORM].[COMPSTMN] AS B 
 		ON	A.COMPKEY = B.COMPKEY 
 			AND 
 			B.OWN = 'BES' 
@@ -122,7 +129,7 @@ FROM	REHAB10FTSEGS AS A
 			AND 
 			PATINDEX('[A-Z][A-Z][A-Z][0-9][0-9][0-9]',DSNODE) > 0 
 			AND  
-			A.COMPKEY IN (SELECT COMPKEY FROM [SIRTOBY].[HANSEN].[IMSV7].VARGALT WHERE ALTIDTYP='OFID')
+			A.COMPKEY IN (SELECT COMPKEY FROM [HANSEN8].[COPASSETMANAGEMENTSTORM].[COPSTMNALTGRD] WHERE ALTIDTYP='OFID')
 
 --Just in case the previous 'BES' queries missed something based
 --upon the differences in whole pipes and segments...
@@ -143,7 +150,7 @@ UPDATE REHAB10FTSEGS  SET Fail_yr_whole =2130, RULife = 120 WHERE ACTION = 8 AND
 --Action flags are now being updated.
 --UPDATE SANDBOX.GIS.REHAB10FTSEGS SET [ACTION] = 5 FROM SANDBOX.GIS.REHAB10FTSEGS INNER JOIN REHAB_Flag5Table ON SANDBOX.GIS.REHAB10FTSEGS.COMPKEY = REHAB_Flag5Table.COMPKEY
 
-
+UPDATE REHAB10FTSEGS SET ACTION = 12 WHERE ACTION = 3 AND MLINKID >40000000 AND def_tot < 1000
 END
 
 

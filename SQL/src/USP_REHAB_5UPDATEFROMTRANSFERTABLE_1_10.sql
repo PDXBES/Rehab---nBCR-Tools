@@ -1,7 +1,7 @@
 USE [REHAB]
 GO
 
-/****** Object:  StoredProcedure [GIS].[USP_REHAB_5UPDATEFROMTRANSFERTABLE_1_10]    Script Date: 08/12/2011 12:42:37 ******/
+/****** Object:  StoredProcedure [GIS].[USP_REHAB_5UPDATEFROMTRANSFERTABLE_1_10]    Script Date: 01/25/2012 15:31:43 ******/
 SET ANSI_NULLS ON
 GO
 

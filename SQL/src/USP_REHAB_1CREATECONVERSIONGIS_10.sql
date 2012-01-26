@@ -1,7 +1,7 @@
 USE [REHAB]
 GO
 
-/****** Object:  StoredProcedure [GIS].[USP_REHAB_1CREATECONVERSIONGIS_10]    Script Date: 08/12/2011 12:40:56 ******/
+/****** Object:  StoredProcedure [GIS].[USP_REHAB_1CREATECONVERSIONGIS_10]    Script Date: 01/25/2012 15:30:41 ******/
 SET ANSI_NULLS ON
 GO
 
@@ -11,6 +11,38 @@ GO
 
 CREATE procedure [GIS].[USP_REHAB_1CREATECONVERSIONGIS_10] AS
 BEGIN
+
+DECLARE @REPORT_YEAR int
+
+SET @REPORT_YEAR = 2010
+
+-------------------------------------------------------------------------------
+--Update the materials and sizes of the sanitary pipes in rehab10ftSegs.  Since
+--Rehab10FtSegs is based on master links, we need to just update it
+--here and forget about whatever master links says the pipe size is.
+UPDATE	Rehab10FtSegs 
+SET		Rehab10FtSegs.Diamwidth = ISNULL([PIPEDIAM],  Rehab10FtSegs.Diamwidth),
+		Rehab10FtSegs.Material  = ISNULL([PIPETYPE],  Rehab10FtSegs.Material),
+		Rehab10FtSegs.instdate  = ISNULL(C1.instdate, Rehab10FtSegs.instdate),
+		HServStat = C1.SERVSTAT
+FROM	Rehab10FtSegs 
+		INNER JOIN 
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[COMPSMN] AS C1 
+		ON  Rehab10FtSegs.CompKey = C1.COMPKEY 
+		
+-------------------------------------------------------------------------------
+--Update the materials and sizes of the storm pipes in rehab10ftSegs.  Since
+--Rehab10FtSegs is based on master links, we need to just update it
+--here and forget about whatever master links says the pipe size is.
+UPDATE	Rehab10FtSegs 
+SET		Rehab10FtSegs.Diamwidth = ISNULL([PIPEDIAM],  Rehab10FtSegs.Diamwidth),
+		Rehab10FtSegs.Material  = ISNULL([PIPETYPE],  Rehab10FtSegs.Material),
+		Rehab10FtSegs.instdate  = ISNULL(C1.instdate, Rehab10FtSegs.instdate),
+		HServStat = C1.SERVSTAT
+FROM	Rehab10FtSegs 
+		INNER JOIN 
+		[HANSEN8].[ASSETMANAGEMENT_STORM].[COMPSTMN] AS C1 
+		ON  Rehab10FtSegs.CompKey = C1.COMPKEY 
 
 --------------------------------------------------------------
 --Empty segment redundancy table
@@ -65,24 +97,6 @@ WHERE	MLINKID < 40000000
 		AND 
 		COMPKEY <> 0
 
-----------------------------------------------------------------------
---Update the SERVSTAT value for the sanitary pipes using HANSEN values
-UPDATE	REHAB_RedundancyTable 
-SET		HServStat = A.SERVSTAT 
-FROM	REHAB_RedundancyTable 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS A 
-ON		REHAB_RedundancyTable.COMPKEY = A.COMPKEY
-
-----------------------------------------------------------------------
---Update the SERVSTAT value for the storm pipes using HANSEN values
-UPDATE	REHAB_RedundancyTable 
-SET		HServStat = A.SERVSTAT 
-FROM	REHAB_RedundancyTable 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS A 
-ON		REHAB_RedundancyTable.COMPKEY = A.COMPKEY
-
 -----------------------------------------------------------------------
 --Empty Conversion1
 DELETE FROM  REHAB_Conversion1
@@ -102,27 +116,27 @@ SELECT C2.COMPKEY AS COMPKEY,
                 ) THEN OBRATING ELSE 0 END AS NewScore, 
        /*REL*/DISTFROM	AS convert_setdwn_from, 
        /*REL*/DISTTO	AS convert_setdwn_to, 
-       TVOBKEY			AS ReadingKey, 
-       STARTDTTM,	COMPDTTM,	INSTDATE,	OBDEGREE, 
-	   OBKEY,		RATING,		OWN,		UnitType,
+       null/*TVOBKEY*/			AS ReadingKey, 
+       STARTDTTM,	COMPDTTM,	INSTDATE,	OBSEVKEY/*OBDEGREE*/, 
+	   OBKEY,		INDEXVAL/*RATING*/,		OWN,		UnitType,
 	   ServStat
 FROM	(
-			[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
+			[HANSEN8].[ASSETMANAGEMENT_SEWER].COMPSMN AS C1 
 			INNER JOIN 
 			(
-				[SIRTOBY].[HANSEN].[IMSV7].INSMNFT AS C2 
+				[HANSEN8].[ASSETMANAGEMENT_SEWER].[SMNSERVICEINSP] AS C2 
 				INNER JOIN 
-				[SIRTOBY].[HANSEN].[IMSV7].INSMNFO AS C3
+				[HANSEN8].[ASSETMANAGEMENT_SEWER].[SMNSERVINSPOB] AS C3
 				ON C2.INSPKEY=C3.INSPKEY
 				--AND C2.COMPDTTM IS NOT NULL
 			) 
 			ON C1.COMPKEY=C2.COMPKEY
 		) 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].INSMNFR AS C4 
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[SMNINDHIST] AS C4 
 		ON C3.INSPKEY = C4.INSPKEY 
 		AND 
-		RATINGKEY = 1001;
+		INDEXKEY = 1015;
 
 -----------------------------------------------------------------------
 --Empty Conversion2
@@ -143,30 +157,30 @@ SELECT C2.COMPKEY AS COMPKEY,
                 ) THEN OBRATING ELSE 0 END AS NewScore, 
        /*REL*/DISTFROM	AS convert_setdwn_from, 
        /*REL*/DISTTO	AS convert_setdwn_to, 
-       TVOBKEY			AS ReadingKey, 
-       STARTDTTM,	COMPDTTM,	INSTDATE,	OBDEGREE,
-	   OBKEY,		RATING,		OWN,		UnitType,
+       null/*TVOBKEY*/			AS ReadingKey, 
+       STARTDTTM,	COMPDTTM,	INSTDATE,	OBSEVKEY/*OBDEGREE*/,
+	   OBKEY,		INDEXVAL/*RATING*/,		OWN,		UnitType,
 	   ServStat
 FROM	(
-			[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
+			[HANSEN8].[ASSETMANAGEMENT_STORM].COMPSTMN AS C1 
 			INNER JOIN 
 			(
-				[SIRTOBY].[HANSEN].[IMSV7].INSTMNFT AS C2 
+				[HANSEN8].[ASSETMANAGEMENT_STORM].[STMNSERVICEINSP] AS C2 
 				INNER JOIN 
-				[SIRTOBY].[HANSEN].[IMSV7].INSTMNFO AS C3
+				[HANSEN8].[ASSETMANAGEMENT_STORM].[STMNSERVINSPOB] AS C3
 				ON C2.INSPKEY=C3.INSPKEY
 				--AND C2.COMPDTTM IS NOT NULL
 			) 
 			ON C1.COMPKEY=C2.COMPKEY
 		) 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].INSTMNFR AS C4 
+		[HANSEN8].[ASSETMANAGEMENT_STORM].[STMNINDHIST] AS C4 
 		ON	C3.INSPKEY = C4.INSPKEY 
 			AND 
-			RATINGKEY = 1001;
+			INDEXKEY = 1008;
 
 -----------------------------------------------------------------------
---Empty Conversion2
+--Empty Conversion3
 DELETE FROM  REHAB_Conversion3
 
 -----------------------------------------------------------------------
@@ -227,7 +241,6 @@ FROM	(
 			FROM	REHAB_Conversion6
 		)AS A
 
-
 -----------------------------------------------------------------------
 --Empty the point defect table
 DELETE FROM  REHAB_point_defect_group
@@ -242,10 +255,7 @@ SELECT  REHAB_RedundancyTable.CompKey,
 		REHAB_RedundancyTable.CutNO,  
 		REHAB_RedundancyTable.FM,  
 		REHAB_RedundancyTable.[TO], 
-		CASE	WHEN Sum(REHAB_CONVERSION.NewScore) IS NOT NULL 
-				THEN Sum(REHAB_CONVERSION.NewScore) 
-				ELSE 0 
-		END AS SumOfNewScore 
+		ISNULL (Sum(REHAB_CONVERSION.NewScore),0) AS SumOfNewScore 
 FROM	REHAB_CONVERSION 
 		INNER JOIN  
 		REHAB_RedundancyTable 
@@ -331,12 +341,12 @@ FROM	(
 						SELECT	compkey, 
 								convert_setdwn_from, 
 								convert_setdwn_to,  
-								REHAB_CONVERSION.obdegree, 
+								REHAB_CONVERSION.OBSEVKEY, 
 								peak_score 
 						FROM	REHAB_CONVERSION 
 								INNER JOIN  
 								REHAB_PeakScore_Lookup 
-								ON REHAB_CONVERSION.obdegree =  REHAB_PeakScore_Lookup.obdegree
+								ON REHAB_CONVERSION.OBSEVKEY =  REHAB_PeakScore_Lookup.OBSEVKEY
 					) AS A 
 					ON M.Compkey = A.Compkey
 			WHERE /*(CutNo = Seg_Count AND convert_setdwn_to>= M.[to]) OR*/ 
@@ -359,50 +369,34 @@ GROUP BY B.CompKey, B.CutNO, B.FM, B.[TO]
 ----------------------------------------------------------------------------
 --Apply the point defect scores to the segments in the redundancy table
 UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Point_Defect_Score = 
-		(
-			CASE WHEN	SumOfNewScore Is Not Null 
-						THEN [SumOfNewScore] 
-						ELSE 0 
-						END
-		) 
+SET		REHAB_RedundancyTable.Point_Defect_Score = ISNULL(SumOfNewScore, 0) 
 FROM	REHAB_point_defect_group 
 		INNER JOIN  
 		REHAB_RedundancyTable 
-		ON 
-		REHAB_point_defect_group.CompKey = REHAB_RedundancyTable.CompKey 
-		AND 
-		REHAB_point_defect_group.CutNO = REHAB_RedundancyTable.CutNO
+		ON	REHAB_point_defect_group.CompKey = REHAB_RedundancyTable.CompKey 
+			AND 
+			REHAB_point_defect_group.CutNO = REHAB_RedundancyTable.CutNO
 
 -------------------------------------------------------------------------------
 --Apply the linear defect scores to the segments in the redundancy table
 UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Linear_Defect_Score = 
-		(
-			CASE WHEN	SumOfNewScore Is Not Null 
-						THEN [SumOfNewScore] 
-						ELSE 0 
-						END
-		) 
+SET		REHAB_RedundancyTable.Linear_Defect_Score = ISNULL(SumOfNewScore, 0)
 FROM	REHAB_linear_defect_groupbysegment 
 		INNER JOIN  
 		REHAB_RedundancyTable 
-		ON 
-		REHAB_linear_defect_groupbysegment.CompKey = REHAB_RedundancyTable.CompKey
-		AND
-		REHAB_linear_defect_groupbysegment.CutNO = REHAB_RedundancyTable.CutNO
+		ON	REHAB_linear_defect_groupbysegment.CompKey = REHAB_RedundancyTable.CompKey
+			AND
+			REHAB_linear_defect_groupbysegment.CutNO = REHAB_RedundancyTable.CutNO
 
 -------------------------------------------------------------------------------
---Give segments that have a null value for point defect score a zero.
+--Give segments that have a null value for point or linear defect score a zero.
+--The old way was faster, but this way makes the code appear cleaner
+--and only takes 2 seconds for the entire db.  This query is really not much different
+--from the 2 preceding it, but this ensures 0 scores for segments and pipes that 
+--didn’t get a score due to not being in the inspection records.
 UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Point_defect_score = 0
-WHERE	REHAB_RedundancyTable.Point_defect_score Is Null
-
---------------------------------------------------------------------------------
---Give segments that have a null value for linear defect score a zero.
-UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Linear_defect_score = 0
-WHERE	REHAB_RedundancyTable.Linear_defect_score Is Null
+SET		REHAB_RedundancyTable.Point_defect_score = ISNULL(REHAB_RedundancyTable.Point_defect_score, 0),
+		REHAB_RedundancyTable.Linear_defect_score = ISNULL(REHAB_RedundancyTable.Linear_defect_score, 0)
 
 --------------------------------------------------------------------------------
 --Set the total defect score for segments equal to the sum of the linear defect
@@ -417,118 +411,18 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.Total_Defect_Score_x15 = [Total_Defect_Score]*15
 
 --------------------------------------------------------------------------------
---Set the last tv inspection to be the date stated in the conversion table
---that the scores were read
+--Set the last tv inspection and inspection grade to be the date and grade stated 
+--in the conversion table.  Set Years_Since_Inspection as well, even though 
+--technically Years_Since_Inspection should be part of a view.  Report year is a 
+--variable, but has often been referred to as 2010
 UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Last_TV_Inspection = [STARTDTTM] 
+SET		REHAB_RedundancyTable.Last_TV_Inspection = [STARTDTTM],
+		REHAB_RedundancyTable.Years_Since_Inspection = @REPORT_YEAR-Year([STARTDTTM]),
+		REHAB_RedundancyTable.RATING = REHAB_CONVERSION.[RATING]
 FROM	REHAB_CONVERSION 
 		INNER JOIN  
 		REHAB_RedundancyTable 
 		ON  REHAB_CONVERSION.COMPKEY = REHAB_RedundancyTable.COMPKEY
-
---------------------------------------------------------------------------------
---Give the segment the HANSEN grade as given to the pipe when the pipe was
---inspected.
-UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.RATING = REHAB_CONVERSION.[RATING] 
-FROM	REHAB_CONVERSION 
-		INNER JOIN  
-		REHAB_RedundancyTable 
-		ON  REHAB_CONVERSION.COMPKEY = REHAB_RedundancyTable.COMPKEY
-
--------------------------------------------------------------------------------
---Update the years since inspection.  Years since inspection is based upon the year 2010.
-UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Years_Since_Inspection = 2010-Year([Last_Tv_Inspection])
-
--------------------------------------------------------------------------------
---Update the sanitary pipe size.
-UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.DiamWidth = [PIPEDIAM] 
-FROM	REHAB_RedundancyTable 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
-		ON  REHAB_RedundancyTable.CompKey = C1.COMPKEY
-
--------------------------------------------------------------------------------
---Update the storm pipe size.
-UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.DiamWidth = [PIPEDIAM] 
-FROM	REHAB_RedundancyTable 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
-		ON C1.COMPKEY = REHAB_RedundancyTable.CompKey
-
--------------------------------------------------------------------------------
---Update the sizes of the pipes in rehab10ftSegs.  Since
---Rehab10FtSegs is based on master links, we need to just update it
---here and forget about whatever master links says the pipe
---size is
-UPDATE	Rehab10FtSegs 
-SET		Rehab10FtSegs.Diamwidth = [PIPEDIAM]
-FROM	Rehab10FtSegs 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
-		ON  Rehab10FtSegs.CompKey = C1.COMPKEY 
-		
--------------------------------------------------------------------------------
---Update the sizes of the pipes in rehab10ftSegs.  Since
---Rehab10FtSegs is based on master links, we need to just update it
---here and forget about whatever master links says the pipe
---size is
-UPDATE	Rehab10FtSegs 
-SET		Rehab10FtSegs.Diamwidth = [PIPEDIAM]
-FROM	Rehab10FtSegs 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
-		ON  Rehab10FtSegs.CompKey = C1.COMPKEY 
-
--------------------------------------------------------------------------------
---Update the sanitary pipe material.  The pipe material is the assumed original material
---that the pipe is made of.
-UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Material = [PIPETYPE] 
-FROM	REHAB_RedundancyTable 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
-		ON  REHAB_RedundancyTable.CompKey = C1.COMPKEY
-
--------------------------------------------------------------------------------
---Update the storm pipe material.  The pipe material is the assumed original material
---that the pipe is made of.
-UPDATE  REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Material = [PIPETYPE] 
-FROM	REHAB_RedundancyTable 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
-		ON C1.COMPKEY = REHAB_RedundancyTable.CompKey
--------------------------------------------------------------------------------
---Update the install dates of the sanitary pipes.  We are going to go by the HANSEN
---install dates, so the install dates from MapInfo data are invalid.
---This query will  only affect those pipes that exist in MapInfo AND
---Hansen, so grade 5 pipes should not be affected by this update.
---This query should definitely be done before the redundancy table is
---filled, so move it.
-UPDATE	Rehab10FtSegs 
-SET		Rehab10FtSegs.instdate = C1.instdate
-FROM	Rehab10FtSegs 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
-		ON  Rehab10FtSegs.CompKey = C1.COMPKEY 
-
--------------------------------------------------------------------------------
---Update the install dates of the storm pipes.  We are going to go by the HANSEN
---install dates, so the install dates from MapInfo data are invalid.
---This query will  only affect those pipes that exist in MapInfo AND
---Hansen, so grade 5 pipes should not be affected by this update.
---This query should definitely be done before the redundancy table is
---filled, so move it.
-UPDATE	REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.instdate = C1.instdate
-FROM	REHAB_RedundancyTable 
-		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
-		ON  REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 
 -------------------------------------------------------------------------------
 --Set the INSP_CURR flag to 1 for sanitary pipes for the following cases:
@@ -538,7 +432,7 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 1 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[COMPSMN] AS C1 
 		ON  REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 WHERE	REHAB_RedundancyTable.Last_TV_Inspection >= C1.instdate
 		OR 
@@ -556,7 +450,7 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 1 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_STORM].[COMPSTMN] AS C1 
 		ON  REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 WHERE	REHAB_RedundancyTable.Last_TV_Inspection >= C1.instdate 
 		OR 
@@ -574,7 +468,7 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 2 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[COMPSMN] AS C1 
 		ON  REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 WHERE	C1.instdate Is Null 
 		AND 
@@ -592,7 +486,7 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 2 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_STORM].[COMPSTMN] AS C1 
 		ON REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 WHERE	C1.instdate Is Null 
 		AND 
@@ -610,7 +504,7 @@ UPDATE	REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 3 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[COMPSMN] AS C1 
 		ON REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 WHERE	C1.instdate > REHAB_RedundancyTable.Last_TV_Inspection 
 		OR 
@@ -624,7 +518,7 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 3 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_STORM].[COMPSTMN] AS C1 
 		ON REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 WHERE	C1.instdate > REHAB_RedundancyTable.Last_TV_Inspection 
 		OR 
@@ -637,7 +531,7 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 4 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_SEWER].[COMPSMN] AS C1 
 		ON REHAB_RedundancyTable.CompKey = C1.COMPKEY 
 WHERE	REHAB_RedundancyTable.Last_TV_Inspection Is Null
 
@@ -648,7 +542,7 @@ UPDATE  REHAB_RedundancyTable
 SET		REHAB_RedundancyTable.INSP_CURR = 4 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN 
-		[SIRTOBY].[HANSEN].[IMSV7].COMPSTMN AS C1 
+		[HANSEN8].[ASSETMANAGEMENT_STORM].[COMPSTMN] AS C1 
 		ON  REHAB_RedundancyTable.CompKey=C1.COMPKEY 
 WHERE	REHAB_RedundancyTable.Last_TV_Inspection Is Null
 
@@ -678,31 +572,6 @@ FROM	REHAB_Attribute_changes_ac
 WHERE	CHTYPE like 'MATERIAL'
 
 -------------------------------------------------------------------------------
---For pipes already in the material varies table, set the material to unknown
---when the graphic length of the pipe differs from the recorded length of the
---pipe by more than 10 feet.  This query is no longer important.
-/*UPDATE  REHAB_MLA_05FtBrk_VariesTable 
-SET		MATERIAL = 'UNKNOWN'
-WHERE	Compkey IN 
-		(
-			SELECT	COMPKEY
-			FROM 
-			(
-				SELECT	Material_Changes_TotalLength.*
-				FROM 
-				(
-					SELECT	REHAB_Material_Changes.Compkey, 
-							SUM(ABS(REHAB_Material_Changes.DISTTO - REHAB_Material_Changes.DISTFROM)) AS SUM_LENGTH
-					FROM	REHAB_Material_Changes
-					GROUP BY  REHAB_Material_Changes.Compkey
-				) AS Material_Changes_TotalLength, GIS.DME_Links_ac
-			WHERE	Material_Changes_TotalLength.Compkey = GIS.DME_Links_ac.Compkey 
-					AND 
-					ABS(Material_Changes_TotalLength.SUM_LENGTH - GIS.DME_Links_ac.SRVY_LEN) >= 10
-			) AS A
-		)
-*/
--------------------------------------------------------------------------------
 --Empty the pipes with VSP table
 DELETE 
 FROM	REHAB_AA_Records_With_VSP
@@ -710,38 +579,44 @@ FROM	REHAB_AA_Records_With_VSP
 -------------------------------------------------------------------------------
 --Place pipes that have VSP in them into the 'Records_with_VSP' table
 INSERT INTO  REHAB_AA_Records_With_VSP 
-SELECT	REHAB_MLA_05FtBrk_VariesTable.MLINKID,  
-		REHAB_MLA_05FtBrk_VariesTable.Compkey,  
-		REHAB_MLA_05FtBrk_VariesTable.FM,  
-		REHAB_Material_Changes.DISTFROM,  
-		REHAB_MLA_05FtBrk_VariesTable.[TO],  
-		REHAB_Material_Changes.DISTTO,  
-		REHAB_Material_Changes.CHDETAIL 
-FROM	REHAB_MLA_05FtBrk_VariesTable,  
-		REHAB_Material_Changes
-WHERE	REHAB_MLA_05FtBrk_VariesTable.Compkey = REHAB_Material_Changes.Compkey 
+SELECT	REHAB_RedundancyTable.MLINKID,  
+		REHAB_RedundancyTable.Compkey,  
+		REHAB_RedundancyTable.FM,  
+		REHAB_Attribute_changes_ac.DISTFROM,  
+		REHAB_RedundancyTable.[TO],  
+		REHAB_Attribute_changes_ac.DISTTO,  
+		REHAB_Attribute_changes_ac.CHDETAIL 
+FROM	REHAB_RedundancyTable
+		INNER JOIN  
+		REHAB_Attribute_changes_ac
+		ON	REHAB_RedundancyTable.COMPKEY = REHAB_Attribute_changes_ac.COMPKEY
+WHERE	REHAB_RedundancyTable.Compkey = REHAB_Attribute_changes_ac.Compkey 
 		AND 
 		(
 			(
-				REHAB_MLA_05FtBrk_VariesTable.FM >= REHAB_Material_Changes.DISTFROM 
+				REHAB_RedundancyTable.FM >= REHAB_Attribute_changes_ac.DISTFROM 
 				AND  
-				REHAB_MLA_05FtBrk_VariesTable.[TO] <= REHAB_Material_Changes.DISTTO
+				REHAB_RedundancyTable.[TO] <= REHAB_Attribute_changes_ac.DISTTO
 			) 
 			OR 
 			( 
-				REHAB_MLA_05FtBrk_VariesTable.FM <= REHAB_Material_Changes.DISTFROM 
+				REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTFROM 
 				AND  
-				REHAB_MLA_05FtBrk_VariesTable.[TO] >= REHAB_Material_Changes.DISTFROM
+				REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTFROM
 			) 
 			OR 
 			( 
-				REHAB_MLA_05FtBrk_VariesTable.FM <= REHAB_Material_Changes.DISTTO 
+				REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTTO 
 				AND  
-				REHAB_MLA_05FtBrk_VariesTable.[TO] >= REHAB_Material_Changes.DISTTO
+				REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTTO
 			)
 		) 
 		AND  
-		REHAB_Material_Changes.CHDETAIL Like 'MAT-VSP'
+		CHDETAIL Like 'MAT-VSP'
+		AND 
+		CHTYPE like 'MATERIAL'
+		AND
+		REHAB_RedundancyTable.Material like 'VARIES'
 
 -------------------------------------------------------------------
 --Remove the records from the 'records_that_patch_vsp' table
@@ -752,45 +627,51 @@ FROM	REHAB_AB_Records_That_Patch_VSP
 --Gets all of the 'jellybeans' that are in a pipe that has been 
 --designated as having VSP materials associated with it.
 INSERT INTO  REHAB_AB_Records_That_Patch_VSP 
-SELECT	REHAB_MLA_05FtBrk_VariesTable.MLINKID,  
-		REHAB_MLA_05FtBrk_VariesTable.Compkey,  
-		REHAB_MLA_05FtBrk_VariesTable.FM,  
-		REHAB_Material_Changes.DISTFROM,  
-		REHAB_MLA_05FtBrk_VariesTable.[TO],  
-		REHAB_Material_Changes.DISTTO,  
-		REHAB_Material_Changes.CHDETAIL 
-FROM	REHAB_MLA_05FtBrk_VariesTable,  
-		REHAB_Material_Changes
-WHERE	REHAB_Material_Changes.Compkey  
+SELECT	REHAB_RedundancyTable.MLINKID,  
+		REHAB_RedundancyTable.Compkey,  
+		REHAB_RedundancyTable.FM,  
+		REHAB_Attribute_changes_ac.DISTFROM,  
+		REHAB_RedundancyTable.[TO],  
+		REHAB_Attribute_changes_ac.DISTTO,  
+		REHAB_Attribute_changes_ac.CHDETAIL 
+FROM	REHAB_RedundancyTable
+		INNER JOIN 
+		REHAB_Attribute_changes_ac
+		ON	REHAB_RedundancyTable.COMPKEY = REHAB_Attribute_changes_ac.COMPKEY
+WHERE	REHAB_Attribute_changes_ac.Compkey  
 		IN 
 		(
 			SELECT	Compkey 
 			FROM	REHAB_AA_Records_With_VSP
 		) 
 		AND 
-		REHAB_MLA_05FtBrk_VariesTable.Compkey = REHAB_Material_Changes.Compkey 
+		REHAB_RedundancyTable.Compkey = REHAB_Attribute_changes_ac.Compkey 
 		AND
 		(
 			(
-				REHAB_MLA_05FtBrk_VariesTable.FM >= REHAB_Material_Changes.DISTFROM 
+				REHAB_RedundancyTable.FM >= REHAB_Attribute_changes_ac.DISTFROM 
 				AND 
-				REHAB_MLA_05FtBrk_VariesTable.[TO] <= REHAB_Material_Changes.DISTTO
+				REHAB_RedundancyTable.[TO] <= REHAB_Attribute_changes_ac.DISTTO
 			) 
 			OR 
 			(
-				REHAB_MLA_05FtBrk_VariesTable.FM <= REHAB_Material_Changes.DISTFROM 
+				REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTFROM 
 				AND 
-				REHAB_MLA_05FtBrk_VariesTable.[TO] >= REHAB_Material_Changes.DISTFROM
+				REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTFROM
 			) 
 			OR 
 			(
-				REHAB_MLA_05FtBrk_VariesTable.FM <= REHAB_Material_Changes.DISTTO 
+				REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTTO 
 				AND 
-				REHAB_MLA_05FtBrk_VariesTable.[TO] >= REHAB_Material_Changes.DISTTO
+				REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTTO
 			)
 		) 
 		AND 
-		REHAB_Material_Changes.CHDETAIL Not Like 'MAT-VSP'
+		REHAB_Attribute_changes_ac.CHDETAIL Not Like 'MAT-VSP'
+		AND
+		CHTYPE like 'MATERIAL'
+		AND 
+		Material like 'VARIES'
 
 ------------------------------------------------------------------------
 --Empty the remaining records table.
@@ -801,13 +682,15 @@ FROM	REHAB_AC_Remaining_Records
 --This query is used for finding the records that have 'varies'
 --but do not have any VSP
 INSERT INTO	REHAB_AC_Remaining_Records 
-SELECT		REHAB_MLA_05FtBrk_VariesTable.CompKey 
-FROM		REHAB_MLA_05FtBrk_VariesTable 
+SELECT		REHAB_RedundancyTable.CompKey 
+FROM		REHAB_RedundancyTable 
 			LEFT JOIN  
 			REHAB_AA_Records_With_VSP 
-			ON  REHAB_MLA_05FtBrk_VariesTable.CompKey = REHAB_AA_Records_With_VSP.Compkey
+			ON  REHAB_RedundancyTable.CompKey = REHAB_AA_Records_With_VSP.Compkey
 WHERE		REHAB_AA_Records_With_VSP.Compkey Is Null
-GROUP BY	REHAB_MLA_05FtBrk_VariesTable.Compkey
+			AND
+			Material like 'VARIES'
+GROUP BY	REHAB_RedundancyTable.Compkey
 
 ------------------------------------------------------------------------
 --Empty the table 'Records_with_no_vsp'
@@ -816,53 +699,89 @@ DELETE FROM  REHAB_AD_Records_With_No_VSP
 ------------------------------------------------------------------------
 --Place the records that have no VSP at all in the Records_with_no_vsp table
 INSERT INTO	REHAB_AD_Records_With_No_VSP 
-SELECT		REHAB_MLA_05FtBrk_VariesTable.MLINKID,  
-			REHAB_MLA_05FtBrk_VariesTable.Compkey,  
-			REHAB_MLA_05FtBrk_VariesTable.FM,  
-			REHAB_Material_Changes.DISTFROM,  
-			REHAB_MLA_05FtBrk_VariesTable.[TO],  
-			REHAB_Material_Changes.DISTTO,  
-			REHAB_Material_Changes.CHDETAIL 
-FROM		REHAB_MLA_05FtBrk_VariesTable,  
-			REHAB_Material_Changes
-WHERE		REHAB_Material_Changes.Compkey 
+SELECT		REHAB_RedundancyTable.MLINKID,  
+			REHAB_RedundancyTable.Compkey,  
+			REHAB_RedundancyTable.FM,  
+			REHAB_Attribute_changes_ac.DISTFROM,  
+			REHAB_RedundancyTable.[TO],  
+			REHAB_Attribute_changes_ac.DISTTO,  
+			REHAB_Attribute_changes_ac.CHDETAIL 
+FROM		REHAB_RedundancyTable
+			INNER JOIN  
+			REHAB_Attribute_changes_ac
+			ON	REHAB_RedundancyTable.COMPKEY = REHAB_Attribute_changes_ac.COMPKEY
+WHERE		REHAB_Attribute_changes_ac.Compkey 
 			IN 
 			(
 				SELECT	Compkey 
 				FROM	REHAB_AC_Remaining_Records
 			) 
 			AND 
-			REHAB_MLA_05FtBrk_VariesTable.Compkey = REHAB_Material_Changes.Compkey 
+			REHAB_RedundancyTable.Compkey = REHAB_Attribute_changes_ac.Compkey 
 			AND 
 			(
 				(
-					REHAB_MLA_05FtBrk_VariesTable.FM >= REHAB_Material_Changes.DISTFROM 
+					REHAB_RedundancyTable.FM >= REHAB_Attribute_changes_ac.DISTFROM 
 					AND 
-					REHAB_MLA_05FtBrk_VariesTable.[TO] <= REHAB_Material_Changes.DISTTO
+					REHAB_RedundancyTable.[TO] <= REHAB_Attribute_changes_ac.DISTTO
 				) 
 				OR 
 				(
-					REHAB_MLA_05FtBrk_VariesTable.FM <= REHAB_Material_Changes.DISTFROM 
+					REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTFROM 
 					AND 
-					REHAB_MLA_05FtBrk_VariesTable.[TO] >= REHAB_Material_Changes.DISTFROM
+					REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTFROM
 				) 
 				OR 
 				(
-					REHAB_MLA_05FtBrk_VariesTable.FM <= REHAB_Material_Changes.DISTTO 
+					REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTTO 
 					AND
-					REHAB_MLA_05FtBrk_VariesTable.[TO] >= REHAB_Material_Changes.DISTTO
+					REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTTO
 				)
 			)
+			AND
+			REHAB_Attribute_changes_ac.CHTYPE like 'MATERIAL'
+			AND 
+			Material like 'VARIES'
 
 --------------------------------------------------------------------------------------------
 --Stamps original VSP 'jellybeans' as original VSP 'jellybeans'.
-UPDATE  REHAB_MLA_05FtBrk_VariesTable 
+UPDATE  REHAB_RedundancyTable 
 SET		MATERIAL = '1_VSP'
 WHERE	MLINKID 
 		IN 
-		(
-			SELECT	MLINKID 
-			FROM	REHAB_AA_Records_With_VSP
+		(	--AA Table Replaced
+			SELECT	REHAB_RedundancyTable.MLINKID
+			FROM	REHAB_RedundancyTable
+					INNER JOIN  
+					REHAB_Attribute_changes_ac
+					ON	REHAB_RedundancyTable.COMPKEY = REHAB_Attribute_changes_ac.COMPKEY
+			WHERE	REHAB_RedundancyTable.Compkey = REHAB_Attribute_changes_ac.Compkey 
+					AND 
+					(
+						(
+							REHAB_RedundancyTable.FM >= REHAB_Attribute_changes_ac.DISTFROM 
+							AND  
+							REHAB_RedundancyTable.[TO] <= REHAB_Attribute_changes_ac.DISTTO
+						) 
+						OR 
+						( 
+							REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTFROM 
+							AND  
+							REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTFROM
+						) 
+						OR 
+						( 
+							REHAB_RedundancyTable.FM <= REHAB_Attribute_changes_ac.DISTTO 
+							AND  
+							REHAB_RedundancyTable.[TO] >= REHAB_Attribute_changes_ac.DISTTO
+						)
+					) 
+					AND  
+					CHDETAIL Like 'MAT-VSP'
+					AND 
+					CHTYPE like 'MATERIAL'
+					AND
+					Material like 'VARIES'
 		)
 
 --------------------------------------------------------------------------------------------
@@ -897,7 +816,8 @@ FROM		(
 							SELECT	COMPKEY, 
 									CHDETAIL, 
 									SUM(ABS(DISTTO-DISTFROM)) AS SUM_LENGTHS
-							FROM	REHAB_Material_Changes
+							FROM	REHAB_Attribute_changes_ac
+							WHERE	CHTYPE like 'MATERIAL'
 							GROUP BY	COMPKEY, 
 										CHDETAIL
 						) AS A
@@ -908,7 +828,8 @@ FROM		(
 				SELECT	COMPKEY, 
 						CHDETAIL, 
 						SUM(ABS(DISTTO-DISTFROM)) AS SUM_LENGTHS
-				FROM	REHAB_Material_Changes
+				FROM	REHAB_Attribute_changes_ac
+				WHERE	CHTYPE like 'MATERIAL'
 				GROUP BY	COMPKEY, 
 							CHDETAIL
 			) AS ALL_LENGTHS
@@ -1006,7 +927,7 @@ WHERE	REHAB_RedundancyTable.INSP_CURR = 1
 
 -------------------------------------------------------------------------------------------
 --Update the standard deviation for segments based upon whether the segment has a useful 
---inspection date (INSP_CURR).  This is similar tot he previous query, and could 
+--inspection date (INSP_CURR).  This is similar to the previous query, and could 
 --probably be combined with it.
 UPDATE	REHAB_RedundancyTable 
 SET		REHAB_RedundancyTable.Std_dev = 
@@ -1025,20 +946,21 @@ WHERE	REHAB_RedundancyTable.INSP_CURR = 1
 -------------------------------------------------------------------------------------------
 --Update the consequence of failure for all pipes.
 UPDATE	REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Consequence_Failure = REHAB_MortalityExport.Consequence 
+SET		REHAB_RedundancyTable.Consequence_Failure = [REHAB].[GIS].[COF-0996 Total Mortality].Consequence 
 FROM	REHAB_RedundancyTable 
 		INNER JOIN  
-		REHAB_MortalityExport 
-		ON REHAB_RedundancyTable.Compkey = REHAB_MortalityExport.Compkey
+		[REHAB].[GIS].[COF-0996 Total Mortality] 
+		ON REHAB_RedundancyTable.COMPKEY = [REHAB].[GIS].[COF-0996 Total Mortality].COMPKEY
 
 -------------------------------------------------------------------------------------------
 --Update the construction cost for all pipes.
 UPDATE	REHAB_RedundancyTable 
-SET		REHAB_RedundancyTable.Replacement_Cost = REHAB_ConstructionExport.CostPerFoot*REHAB_RedundancyTable.[Length] 
+SET		REHAB_RedundancyTable.Replacement_Cost = ([CMOM2Pipes].TotalConstructionCost/(Seg_Count*10))*REHAB_RedundancyTable.[Length]
+--SET		REHAB_RedundancyTable.Replacement_Cost = [REHAB].[GIS].[REHAB_ConstructionExport].CostPerFoot * REHAB_RedundancyTable.[Length]
 FROM	REHAB_RedundancyTable 
 		INNER JOIN  
-		REHAB_ConstructionExport 
-		ON REHAB_RedundancyTable.Compkey = REHAB_ConstructionExport.Compkey
+		[CMOM2Pipes]/*[REHAB].[GIS].[REHAB_ConstructionExport]*/
+		ON REHAB_RedundancyTable.Old_MLID/*COMPKEY*/ = [CMOM2Pipes].MLINKID/*[REHAB].[GIS].[REHAB_ConstructionExport].COMPKEY*/
 
 -------------------------------------------------------------------------------------------
 --If the inspection is absolutely not current, then the Hansen rating for that pipe

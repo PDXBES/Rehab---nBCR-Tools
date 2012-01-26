@@ -1,7 +1,7 @@
 USE [REHAB]
 GO
 
-/****** Object:  StoredProcedure [GIS].[USP_REHAB_2IDENTIFYSPOTREPAIRSFASTER_10]    Script Date: 08/12/2011 12:41:40 ******/
+/****** Object:  StoredProcedure [GIS].[USP_REHAB_2IDENTIFYSPOTREPAIRSFASTER_10]    Script Date: 01/25/2012 15:30:55 ******/
 SET ANSI_NULLS ON
 GO
 
@@ -432,12 +432,12 @@ UPDATE  REHAB_RedundancyTable SET /*Failure_Year = 2010, RULife = 0, Std_Dev = 1
 	FROM  
 			(
 				(
-					[HANSEN].[IMSV7].[INSMNFR] AS A 
+					[HANSEN8].[ASSETMANAGEMENT_SEWER].[SMNINDHIST] AS A 
 					INNER JOIN 
 					REHAB_CONVERSION AS B 
 					ON	A.INSPKEY = B.INSPKEY 
-						AND A.RATING >= 3.9 
-						AND RATINGKEY = 1010
+						AND A.INDEXVAL >= 3.9 
+						AND INDEXKEY = 1010
 				) 
 				INNER JOIN 
 				REHAB_RedundancyTable AS C 
@@ -475,12 +475,12 @@ UPDATE  REHAB_RedundancyTable SET /*Failure_Year = 2010, RULife = 0, Std_Dev = 1
 FROM 
 		(
 			(
-				[HANSEN].[IMSV7].[INSTMNFR] AS A 
+				[HANSEN8].[ASSETMANAGEMENT_STORM].[STMNINDHIST] AS A 
 				INNER JOIN 
 				REHAB_CONVERSION AS B 
 				ON	A.INSPKEY = B.INSPKEY 
-					AND A.RATING >= 3.9 
-					AND RATINGKEY = 1005
+					AND A.INDEXVAL >= 3.9 
+					AND INDEXKEY = 1005
 			) 
 			INNER JOIN 
 			REHAB_RedundancyTable AS C 
@@ -531,11 +531,11 @@ UPDATE  REHAB_RedundancyTable SET Fail_tot = theCount FROM  REHAB_RedundancyTabl
 UPDATE  REHAB_RedundancyTable SET Fail_pct = CASE WHEN seg_count = 0 THEN 0 ELSE CAST(fail_tot AS FLOAT)/CAST(seg_count AS FLOAT)*100 END WHERE COMPKEY <> 0
 /**************************************************/
 ----------------------------------------------------------------------------------------------
---Identify Action 7 sanitary pipes:
+--Identify Action 7 storm pipes:
 UPDATE  REHAB_RedundancyTable SET /*Failure_Year = 2010, RULife = 0, Std_Dev = 12,*/ [ACTION] = 7
 FROM  
-			([HANSEN].[IMSV7].[INSTMNFR] AS A INNER JOIN REHAB_CONVERSION AS B 
-				ON A.INSPKEY = B.INSPKEY AND A.RATING >= 3.9 AND RATINGKEY = 1005
+			([HANSEN8].[ASSETMANAGEMENT_STORM].[STMNINDHIST] AS A INNER JOIN REHAB_CONVERSION AS B 
+				ON A.INSPKEY = B.INSPKEY AND A.INDEXVAL >= 3.9 AND INDEXKEY = 1005
 			) INNER JOIN REHAB_RedundancyTable AS C ON B.COMPKEY = C.COMPKEY
 			AND
 
@@ -546,12 +546,12 @@ FROM
 				C.RATING >=4
 
 ----------------------------------------------------------------------------------------------				
---Identify action 7 storm pipes
+--Identify action 7 sanitary pipes
 UPDATE  REHAB_RedundancyTable SET /*Failure_Year = 2010, RULife = 0, Std_Dev = 12,*/ [ACTION] = 7
 	--SELECT C.COMPKEY, MAX(C.def_tot), MAX(C.fail_near), MAX(C.fail_tot)
 	FROM  
-			([HANSEN].[IMSV7].[INSMNFR] AS A INNER JOIN REHAB_CONVERSION AS B 
-				ON A.INSPKEY = B.INSPKEY AND A.RATING >= 3.9 AND RATINGKEY = 1010
+			([HANSEN8].[ASSETMANAGEMENT_SEWER].[SMNINDHIST] AS A INNER JOIN REHAB_CONVERSION AS B 
+				ON A.INSPKEY = B.INSPKEY AND A.INDEXVAL >= 3.9 AND INDEXKEY = 1010
 			) INNER JOIN REHAB_RedundancyTable AS C ON B.COMPKEY = C.COMPKEY
 			AND
 
@@ -608,7 +608,9 @@ FROM
 			REHAB_RedundancyTable AS A 
 			INNER JOIN 
 			REHAB_RedundancyTableWhole AS B 
-			ON A.COMPKEY = B.COMPKEY
+			ON	A.COMPKEY = B.COMPKEY
+				AND
+				A.RATING >= 4
 		) 
 		INNER JOIN 
 		REHAB_RedundancyTableWhole AS C 
