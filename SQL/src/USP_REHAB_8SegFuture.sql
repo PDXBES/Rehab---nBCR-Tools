@@ -1,14 +1,13 @@
 USE [REHAB]
 GO
-
-/****** Object:  StoredProcedure [GIS].[USP_REHAB_8SegFuture]    Script Date: 01/25/2012 15:32:22 ******/
+/****** Object:  StoredProcedure [dbo].[USP_REHAB_8SegFuture]    Script Date: 06/12/2013 12:27:48 ******/
 SET ANSI_NULLS ON
 GO
-
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE procedure [GIS].[USP_REHAB_8SegFuture]  --(@Compkey int)
+
+ALTER procedure [dbo].[USP_REHAB_8SegFuture]  --(@Compkey int)
 AS
 BEGIN
 
@@ -23,21 +22,21 @@ DECLARE @ReplaceYear_Whole  float
 DECLARE @iterativeColumn	int
 DECLARE @SQL				nchar(4000)
 --
-DELETE FROM REHAB_SegFuture
+TRUNCATE TABLE REHAB_SegFuture
 --
-SET @ReplaceYear = 2040.00
-SET @ReplaceYear_Whole = 2130
+SET @ReplaceYear = year(getdate())+30
+SET @ReplaceYear_Whole = year(getdate())+120
 SET @ReplaceSDev = 12.00
-SET @thisYear = 2010.00
+SET @thisYear = year(getdate())
 
 DECLARE @columnName			nchar(6)
 DECLARE @interestValue      float
 
-SET @thisYear = 2010.00
-SET @iterativeYear = 2010
+SET @thisYear = year(getdate())
+SET @iterativeYear = year(getdate())
 SET @iterativeColumn = 14
 
-WHILE @iterativeYear <= 2130
+WHILE @iterativeYear <= year(getdate())+120
 BEGIN
 --
 	INSERT 
@@ -48,8 +47,8 @@ BEGIN
 			Fail_Yr_seg, 
 			cof, 
 			@iterativeYear, 
-			cof * GIS.NORMDIST(convert(numeric(12,2),@iterativeYear), Fail_Yr_seg , Std_dev_seg,1)
-	FROM	[REHAB10FTSEGS] 
+			cof * dbo.NORMDIST(convert(numeric(12,2),@iterativeYear), Fail_Yr_seg , Std_dev_seg,1)
+	FROM	[GIS].[REHAB10FTSEGS]
 	WHERE	MLINKID >= 40000000 
 			AND REMARKS = 'BES' 
 			AND ReplaceCost <> 0 
@@ -70,7 +69,7 @@ FROM
 (
 	SELECT	X.COMPKEY, 
 			MIN(Year) AS ACCUM_RISK_INSPECT_YEAR 
-	FROM	[REHAB10FTSEGS] AS X
+	FROM	[GIS].[REHAB10FTSEGS]AS X
 			INNER JOIN
 			(	
 				--Get the sum of the bpw for each pipe for each year
@@ -94,7 +93,7 @@ FROM
 	GROUP BY X.COMPKEY 
 )		AS C 
 		INNER JOIN 
-		[REHAB10FTSEGS] AS X
+		[GIS].[REHAB10FTSEGS]AS X
 		ON	C.COMPKEY = X.COMPKEY 
 			AND 
 			MLinkID < 40000000
@@ -109,7 +108,7 @@ FROM
 			--The lowest year that has a bpw higher than the replace
 			--cost is the accumulated risk replace year.
 			MIN([Year]) AS ACCUM_RISK_REPLACE_YEAR 
-	FROM	[REHAB10FTSEGS] AS X
+	FROM	[GIS].[REHAB10FTSEGS]AS X
 			INNER JOIN
 			(
 				--Get the sum of the bpw for each pipe for each year
@@ -132,12 +131,11 @@ FROM
 	GROUP BY X.COMPKEY
 )		AS C 
 		INNER JOIN 
-		[REHAB10FTSEGS] AS X
+		[GIS].[REHAB10FTSEGS]AS X
 		ON	C.COMPKEY = X.COMPKEY 
 			AND 
 			MLinkID <40000000
 
 
 END
-GO
 
