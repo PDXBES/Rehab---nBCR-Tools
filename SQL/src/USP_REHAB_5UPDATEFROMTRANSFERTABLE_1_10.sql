@@ -1,19 +1,17 @@
 USE [REHAB]
 GO
-
-/****** Object:  StoredProcedure [GIS].[USP_REHAB_5UPDATEFROMTRANSFERTABLE_1_10]    Script Date: 01/25/2012 15:31:43 ******/
+/****** Object:  StoredProcedure [dbo].[USP_REHAB_5UPDATEFROMTRANSFERTABLE_1_10]    Script Date: 06/12/2013 12:26:14 ******/
 SET ANSI_NULLS ON
 GO
-
 SET QUOTED_IDENTIFIER ON
 GO
 
 
-CREATE procedure [GIS].[USP_REHAB_5UPDATEFROMTRANSFERTABLE_1_10] AS
+ALTER procedure [dbo].[USP_REHAB_5UPDATEFROMTRANSFERTABLE_1_10] AS
 BEGIN
 
 
-UPDATE REHAB10FTSEGS  SET 
+UPDATE GIS.Rehab10FtSegs  SET 
 	[MAT_FmTo]		= A.[MAT_FmTo],
 	[Seg_Count]		= A.[Seg_Count],
 	[Fail_NEAR]		= A.[Fail_NEAR],
@@ -68,7 +66,7 @@ UPDATE REHAB10FTSEGS  SET
 	[std_dev_whole] = NULL
 FROM	REHAB_RedundancyTable AS A 
 		INNER JOIN 
-		REHAB10FTSEGS AS B 
+		GIS.Rehab10FtSegs AS B 
 		ON	A.MLinkID = B.MLinkID 
 			AND 
 			A.MlinkID >= 40000000
@@ -77,5 +75,5 @@ FROM	REHAB_RedundancyTable AS A
 END
 
 
-GO
+
 
