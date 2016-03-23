@@ -1,7 +1,7 @@
 USE [REHAB]
 GO
 
-/****** Object:  StoredProcedure [dbo].[__USP_REHAB_12CreatenBCRMatrix]    Script Date: 03/04/2016 09:32:01 ******/
+/****** Object:  StoredProcedure [dbo].[__USP_REHAB_12CreatenBCRMatrix]    Script Date: 03/23/2016 14:11:13 ******/
 SET ANSI_NULLS ON
 GO
 
@@ -15,13 +15,9 @@ BEGIN
   IF @AsOfDate IS NULL
    SET @AsOfDate = GETDATE()
    
-  DECLARE @unacceptableSurchargeFootage FLOAT = 1.0
+  DECLARE @unacceptableSurchargeFootage FLOAT = 3.0--1.0
   DECLARE @unacceptableOvallingFraction FLOAT = 0.1
   DECLARE @unacceptableSagFraction FLOAT = 0.1
-  
-  UPDATE  A
-  SET     problems = ''
-  FROM    GIS.REHAB_Branches AS A
    
   
   --For each pipe, there is a valid nBCR matrix.  For example, some pipes cannot
@@ -41,8 +37,7 @@ BEGIN
           nBCR_CIPP_OC = NULL,
           nBCR_CIPP_CIPP = NULL,
           nBCR_CIPP_SP = NULL,
-          nBCR_SP_CIPP = NULL,
-          problems = ISNULL(problems, '') + ', extensive surcharge'
+          nBCR_SP_CIPP = NULL
   FROM    GIS.REHAB_Branches AS A
           INNER JOIN
           REHAB_SURCHARGE AS B
@@ -59,8 +54,7 @@ BEGIN
           nBCR_CIPP_SP = NULL,
           nBCR_SP_CIPP = NULL,
           nBCR_SP_OC = NULL,
-          nBCR_SP_SP = NULL,
-          problems = ISNULL(problems, '') + ', extensive sagging'
+          nBCR_SP_SP = NULL
 FROM    GIS.REHAB_Branches AS A
 INNER JOIN
 (
@@ -161,8 +155,7 @@ ON Results.COMPKEY = A.COMPKEY
           nBCR_CIPP_SP = NULL,
           nBCR_SP_CIPP = NULL,
           nBCR_SP_OC = NULL,
-          nBCR_SP_SP = NULL,
-          problems = ISNULL(problems, '') + ', extensive ovaling'
+          nBCR_SP_SP = NULL
 FROM    GIS.REHAB_Branches AS A
 INNER JOIN
 (
@@ -397,6 +390,34 @@ ON Results.COMPKEY = A.COMPKEY
           ON A.Compkey = B.Compkey
   
   --Once all of those comparisons are made, a few more gates need to drop.
+  --This gate is the 'if there are only one or two bad spots, then it should be a spot repair pipe'
+  UPDATE  A
+  SET     ASM_Gen3Solution = 'SP',
+          problems = ISNULL(problems, '') + ', only one or two bad spots'
+  FROM    GIS.REHAB_Branches AS A
+  WHERE   COMPKEY IN
+          (
+            SELECT  COMPKEY
+            FROM    GIS.REHAB_Segments AS C
+            WHERE   cutno > 0
+                    AND
+                    (
+                      [action] = 3
+                      OR
+                      def_tot > 100
+                    )
+                    
+            GROUP BY COMPKEY
+            HAVING COUNT(*) > 0
+                   AND
+                   COUNT(*) <= 2
+          )
+          AND
+          problems not like '%oval%'
+          AND
+          problems not like '%sagg%'
+  
+  
   --This gate is the 'OC if between two other OC pipes'
   UPDATE  A
   SET     ASM_Gen3Solution = 'OC Sandwich',

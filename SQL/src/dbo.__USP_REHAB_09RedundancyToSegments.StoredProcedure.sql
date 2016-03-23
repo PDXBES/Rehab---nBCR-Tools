@@ -1,7 +1,7 @@
 USE [REHAB]
 GO
 
-/****** Object:  StoredProcedure [dbo].[__USP_REHAB_09RedundancyToSegments]    Script Date: 03/04/2016 09:31:02 ******/
+/****** Object:  StoredProcedure [dbo].[__USP_REHAB_09RedundancyToSegments]    Script Date: 03/23/2016 14:10:46 ******/
 SET ANSI_NULLS ON
 GO
 

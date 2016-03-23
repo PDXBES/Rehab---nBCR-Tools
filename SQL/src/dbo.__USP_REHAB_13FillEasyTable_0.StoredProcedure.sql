@@ -1,7 +1,7 @@
 USE [REHAB]
 GO
 
-/****** Object:  StoredProcedure [dbo].[__USP_REHAB_13FillEasyTable_0]    Script Date: 03/04/2016 09:32:15 ******/
+/****** Object:  StoredProcedure [dbo].[__USP_REHAB_13FillEasyTable_0]    Script Date: 03/23/2016 14:11:26 ******/
 SET ANSI_NULLS ON
 GO
 
@@ -242,20 +242,20 @@ BEGIN
           ON  A.COMPKEY = B.COMPKEY
   WHERE   B.hSERVSTAT = 'PEND'
   
-  --If the nBCR is less than 0.1 and grade > 3, recommend 'Watch Me'
+  --If the nBCR is less than 0.1 and grade > 3, and failure year > @MaxFailYear, recommend 'Watch Me'
   UPDATE  REHAB.GIS.[nBCR_Data]
   SET     [ASMRecommendedAction] = 'Watch me'
   FROM    REHAB.GIS.[nBCR_Data] AS A
   WHERE   grade_h5 > 3
           AND
           (
-            [ASMRecommendednBCR] < 0.1
-            OR
-            FailureYear > @MaxFailYear
+            (
+              [ASMRecommendednBCR] < 0
+              AND
+              FailureYear > @MaxFailYear
+            )
             OR
             [ASMFailureAction] like '%(PEND)%'
-            OR
-            SpotRepairCount = 0
           )
           
   
@@ -279,6 +279,154 @@ BEGIN
               B.Cutno = 0
               AND
               A.Cutno > 0
+  
+  
+  --Apply actual CoF value to whole pipes
+  --If liner or whole , use liner or whole  * 1.4
+  --If spot use product sum of spot and isSpotRepair * 1.4
+  --If nothing, use maximum spot repair * 1.4 (could be open cut but we will worry about that later).
+  UPDATE  A
+  SET     A.cof = CostToLineOnly * 1.4 + MaxSegmentCofWithoutReplacement
+  FROM    REHAB.GIS.[nBCR_Data] AS A
+  WHERE   ASMRecommendedAction = 'CIPP'
+          AND 
+          cutno = 0
+  
+  UPDATE  A
+  SET     A.cof = CostToWholePipeOnly * 1.4 + MaxSegmentCofWithoutReplacement
+  FROM    REHAB.GIS.[nBCR_Data] AS A
+  WHERE   ASMRecommendedAction IN ('OC', 'OC Sandwich')
+          AND
+          cutno = 0
+  
+  UPDATE  A
+  SET     A.cof = B.SumOfSpotCosts * 1.4 + MaxSegmentCofWithoutReplacement
+  FROM    REHAB.GIS.[nBCR_Data] AS A
+          INNER JOIN
+          (
+            SELECT  Compkey, 
+                    SUM(CostToSpotOnly*SpotRepairCount) AS SumOfSpotCosts
+            FROM    REHAB.GIS.[nBCR_Data] AS A
+            WHERE   cutno  > 0
+            GROUP BY COMPKEY
+          ) AS B
+          ON A.Compkey = B.Compkey
+  WHERE   ASMRecommendedAction IN ('SP')
+          AND
+          cutno = 0
+
+  UPDATE  A
+  SET     A.cof = B.MaxOfSpotCosts * 1.4 + MaxSegmentCofWithoutReplacement
+  FROM    REHAB.GIS.[nBCR_Data] AS A
+          INNER JOIN
+          (
+            SELECT  Compkey, 
+                    MAX(CostToSpotOnly) AS MaxOfSpotCosts
+            FROM    REHAB.GIS.[nBCR_Data] AS A
+            WHERE   cutno > 0
+            GROUP BY COMPKEY
+          ) AS B
+          ON A.Compkey = B.Compkey
+  WHERE   (
+            ASMRecommendedAction NOT IN ('SP', 'OC', 'OC Sandwich', 'CIPP')
+            OR
+            ASMRecommendedAction IS NULL
+          )
+          AND
+          cutno = 0
+  
+DECLARE @thisYear int = YEAR(GETDATE())
+DECLARE @SpotRotationFrequency int = 30
+DROP TABLE  REHAB.GIS.nBCR_View_Costs
+ 
+SELECT    Compkey, A.CostToWholePipeOnly AS Cost, LateralCost INTO REHAB.GIS.nBCR_View_Costs
+  FROM    REHAB.GIS.nBCR_Data AS A
+  WHERE ASMRecommendedAction IN ('OC', 'OC Sandwich')
+        AND
+        cutno = 0
+UNION ALL  
+SELECT A.Compkey, B.TotalFirstSpotRepairs AS Cost, LateralCost
+  FROM    REHAB.GIS.nBCR_Data AS A
+          INNER JOIN
+          (  
+            SELECT  Z.compkey, SUM([CapitalNonMobilization]) + MAX([CapitalMobilizationRate])*(SUM(BaseTime) + MAX([MobilizationTime]))/@HoursPerDay AS TotalFirstSpotRepairs
+            FROM    REHAB.GIS.REHAB_Segments AS Z
+                    INNER JOIN
+                    [COSTEST_CapitalCostsMobilizationRatesAndTimes] AS ZZ1
+                    ON  Z.ID = ZZ1.ID
+                        AND
+						ZZ1.[type] = 'Spot'
+            WHERE   Z.cutno > 0
+                    AND
+                    (
+                      (
+                        Z.fail_yr_seg <= @thisYear + @SpotRotationFrequency
+                        AND
+                        Z.def_tot >= 1000
+                      )
+                      OR
+                      [action] = 3
+                    )
+            GROUP BY Z.COMPKEY
+          ) AS B
+          ON  A.COMPKEY = B.compkey
+          AND ASMRecommendedAction = 'SP'
+          AND cutno = 0
+UNION ALL          
+SELECT A.Compkey, TotalSpotLineCost AS Cost, LateralCost
+  FROM    (
+            SELECT Table1.COMPKEY, 
+                   (ISNULL(SpotNonMobCap,0) + LineNonMobCap) 
+                   + (CASE WHEN ISNULL(SpotRate,0) > ISNULL(LineRate,0) THEN ISNULL(SpotRate,0) ELSE ISNULL(LineRate,0) END)
+                   * (
+                       CASE WHEN ISNULL(SpotMobTime,0) > ISNULL(LineMobTime,0) THEN ISNULL(SpotMobTime,0) ELSE ISNULL(LineMobTime,0) END
+                       +
+                       (ISNULL(SpotBaseTime,0) + LineBaseTime)
+                     )/@HoursPerDay AS TotalSpotLineCost
+            FROM
+            (
+				SELECT  X.compkey, 
+						ISNULL(SUM([CapitalNonMobilization]),0) AS SpotNonMobCap,
+						ISNULL(MAX([CapitalMobilizationRate]),0) AS SpotRate,
+						ISNULL(SUM(BaseTime),0) AS SpotBaseTime,
+						ISNULL(MAX([MobilizationTime]),0) AS SpotMobTime
+				FROM    REHAB.GIS.REHAB_Branches AS X
+				        LEFT OUTER JOIN
+				        (
+				          REHAB.GIS.REHAB_Segments AS Z
+				          INNER JOIN
+						  [COSTEST_CapitalCostsMobilizationRatesAndTimes] AS ZZ1
+						  ON  Z.ID = ZZ1.ID
+						      AND
+						      ZZ1.[type] = 'Spot'
+						      AND
+						      [action] = 3
+						      AND
+						      Z.cutno = 0
+						)
+						ON  X.compkey = Z.compkey
+                GROUP BY X.compkey
+            ) AS Table1
+            INNER JOIN
+            (
+              SELECT  Compkey,
+                      [CapitalNonMobilization] AS LineNonMobCap,
+				      [CapitalMobilizationRate] AS LineRate,
+					  BaseTime AS LineBaseTime,
+					  [MobilizationTime] AS LineMobTime
+              FROM    [COSTEST_CapitalCostsMobilizationRatesAndTimes]
+              WHERE   [type] = 'Line'
+                      AND 
+                      ID < 40000000
+            ) AS Table2
+            ON Table1.Compkey = Table2.Compkey
+          ) AS A
+          INNER JOIN  
+          REHAB.GIS.nBCR_Data AS C
+          ON  A.Compkey = C.Compkey
+          AND ASMRecommendedAction = 'CIPP'
+          AND C.cutno = 0
+          
   
          
   
